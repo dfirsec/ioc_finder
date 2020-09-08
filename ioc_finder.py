@@ -1,10 +1,3 @@
-#!/usr/bin/env python
-
-__author__ = "DFIRSec (@pulsecode)"
-__description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
-
-# TODO: Consolidate and streamline functions
-
 import csv
 import hashlib
 import os
@@ -19,6 +12,10 @@ from colorama import Back, Fore, Style, init
 from tqdm import tqdm
 from wcmatch import fnmatch
 
+__author__ = "DFIRSec (@pulsecode)"
+__version__ = "0.0.2"
+__description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
+
 
 class Workers(object):
     def __init__(self, count=None):
@@ -30,10 +27,10 @@ class Workers(object):
     hostname = socket.gethostname().upper()
 
     # Unicode Symbols and colors -  ref: http://www.fileformat.info/info/unicode/char/a.htm
-    processing = Fore.CYAN + "\u2BA9" + Style.RESET_ALL     # ⮩
-    found = Fore.GREEN + "\u2714" + Style.RESET_ALL         # ✔
-    notfound = Fore.YELLOW + "\u00D8" + Style.RESET_ALL     # Ø
-    error = Fore.RED + "\u2718" + Style.RESET_ALL           # ✘
+    processing = '{} {} {}'.format(Fore.CYAN, "\u2BA9", Fore.RESET)
+    found = '{} {} {}'.format(Fore.GREEN, "\u2714", Fore.RESET)
+    notfound = '{} {} {}'.format(Fore.YELLOW, "\u00D8", Fore.RESET)
+    error = '{} {} {}'.format(Fore.RED, "\u2718", Fore.RESET)
 
     def iocs_file(self):
         return self.iocs / 'known_iocs.txt'
@@ -70,9 +67,9 @@ def main(drivepath, ioc=None, file=None):
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)  # nopep8
             writer.writeheader()
             for root, _, files in tqdm(os.walk(drivepath),
-                                    ascii=True,
-                                    desc=f"{WRK.processing} Searching for IOCs on {WRK.hostname}",
-                                    ncols=80, unit=" files"):
+                                       ascii=True,
+                                       desc=f"{WRK.processing} Searching for IOCs on {WRK.hostname}",
+                                       ncols=80, unit=" files"):
                 for filename in files:
                     for item in ioc:
                         if fnmatch.fnmatch(filename, item+r'*', flags=fnmatch.IGNORECASE):
@@ -81,9 +78,9 @@ def main(drivepath, ioc=None, file=None):
                                 created = datetime.fromtimestamp(os.stat(path).st_ctime)  # nopep8
                                 size = os.stat(path).st_size
                                 writer.writerows([{'Path': path,
-                                                'Size': size,
-                                                'Created': f"{created:%Y-%m-%d}",
-                                                'Hash': WRK.sha256(path)}])
+                                                   'Size': size,
+                                                   'Created': f"{created:%Y-%m-%d}",
+                                                   'Hash': WRK.sha256(path)}])
                                 WRK.count += 1
                             except PermissionError:
                                 continue
@@ -102,26 +99,26 @@ def main(drivepath, ioc=None, file=None):
             fieldnames = ['Path', 'Size', 'Created', 'Hash']  # nopep8
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)  # nopep8
             writer.writeheader()
-            for root, dirs, files in tqdm(os.walk(drivepath),
-                                        ascii=True,
-                                        desc=f"{WRK.processing} Searching for IOCs on {WRK.hostname}",
-                                        ncols=80, unit=" files"):
-                    for filename in files:
-                        if filename.lower() in (name.lower() for name in ioc_str):
-                            try:
-                                path = os.path.join(root, filename)
-                                created = datetime.fromtimestamp(os.stat(path).st_ctime)  # nopep8
-                                size = os.stat(path).st_size
-                                WRK.count += 1
-                                writer.writerows([{'Path': path,
-                                                'Size': size,
-                                                'Created': f"{created:%Y-%m-%d}",
-                                                'Hash': WRK.sha256(path)}])
-                            except (PermissionError, WindowsError):
-                                continue
-                            except Exception as err:
-                                print(f"{WRK.error} {err}")
-            
+            for root, _, files in tqdm(os.walk(drivepath),
+                                       ascii=True,
+                                       desc=f"{WRK.processing} Searching for IOCs on {WRK.hostname}",
+                                       ncols=80, unit=" files"):
+                for filename in files:
+                    if filename.lower() in (name.lower() for name in ioc_str):
+                        try:
+                            path = os.path.join(root, filename)
+                            created = datetime.fromtimestamp(os.stat(path).st_ctime)  # nopep8
+                            size = os.stat(path).st_size
+                            WRK.count += 1
+                            writer.writerows([{'Path': path,
+                                               'Size': size,
+                                               'Created': f"{created:%Y-%m-%d}",
+                                               'Hash': WRK.sha256(path)}])
+                        except (PermissionError, WindowsError):
+                            continue
+                        except Exception as err:
+                            print(f"{WRK.error} {err}")
+
     if WRK.count:
         print(f"\n{WRK.found} Found {WRK.count} IOCs on {WRK.hostname}")
         print(f"    --> Results saved to {WRK.save_iocs_csv()}")
@@ -136,15 +133,18 @@ def main(drivepath, ioc=None, file=None):
 
 
 if __name__ == '__main__':
-    banner = '''
+    banner = fr'''
           ________  ______   _______           __
          /  _/ __ \/ ____/  / ____(_)___  ____/ /__  _____
          / // / / / /      / /_  / / __ \/ __  / _ \/ ___/
        _/ // /_/ / /___   / __/ / / / / / /_/ /  __/ /
       /___/\____/\____/  /_/   /_/_/ /_/\__,_/\___/_/
+      
+                                    v{__version__}
+                                    {__author__}
     '''
 
-    print(Fore.CYAN + banner + Style.RESET_ALL)
+    print(f"{Fore.CYAN}{banner}{Fore.RESET}")
 
     WRK = Workers()
     parser = ArgumentParser()
