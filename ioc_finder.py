@@ -27,10 +27,10 @@ class Workers(object):
     hostname = socket.gethostname().upper()
 
     # Unicode Symbols and colors -  ref: http://www.fileformat.info/info/unicode/char/a.htm
-    processing = '{} {} {}'.format(Fore.CYAN, "\u2BA9", Fore.RESET)
-    found = '{} {} {}'.format(Fore.GREEN, "\u2714", Fore.RESET)
-    notfound = '{} {} {}'.format(Fore.YELLOW, "\u00D8", Fore.RESET)
-    error = '{} {} {}'.format(Fore.RED, "\u2718", Fore.RESET)
+    processing = f'{Fore.CYAN}\u2BA9{Fore.RESET}'
+    found = f'{Fore.GREEN}\u2714{Fore.RESET}'
+    notfound = f'{Fore.YELLOW}\u00D8{Fore.RESET}'
+    error = f'{Fore.RED}\u2718{Fore.RESET}'
 
     def iocs_file(self):
         return self.iocs / 'known_iocs.txt'
@@ -55,7 +55,7 @@ class Workers(object):
         return data
 
 
-def main(drivepath, ioc=None, file=None):
+def main(drivepath, ioc=None, infile=None):
     # Check if python version is v3.6+
     if sys.version_info[0] == 3 and sys.version_info[1] <= 5:
         sys.exit(f"\n{WRK.error} Please use python version 3.6 or higher.\n")
@@ -89,7 +89,7 @@ def main(drivepath, ioc=None, file=None):
                             except Exception as err:
                                 print(f"{WRK.error} {err}")
 
-    elif file:
+    elif infile:
         # check if IOC's file is empty (no IOCs)
         if os.path.getsize(WRK.iocs_file()) < 40:
             sys.exit(f"\n{WRK.error} Missing IOCs -- The {WRK.iocs_file()} file appears to be empty.\n")  # nopep8
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-i', '--ioc', nargs='+', type=str,
                        help="Single or list of IOCs (comma/space separated)")
-    group.add_argument('-f', '--file', action='store_true', default=WRK.iocs_file(),
+    group.add_argument('-f', '--infile', action='store_true', default=WRK.iocs_file(),
                        help="Uses 'known_iocs.txt' file containing IOCs")
 
     args = parser.parse_args()
@@ -161,4 +161,4 @@ if __name__ == '__main__':
         parser.print_help()
         parser.exit()
 
-    main(args.path, args.ioc, args.file)
+    main(args.path, args.ioc, args.infile)
