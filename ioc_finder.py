@@ -2,13 +2,15 @@ import csv
 import hashlib
 import os
 import socket
+import string
 import sys
 import time
 from argparse import ArgumentParser
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePath
 
-from colorama import Fore, init as color_init
+from colorama import Fore
+from colorama import init as color_init
 from tqdm import tqdm
 from wcmatch import fnmatch
 
@@ -57,6 +59,10 @@ class Workers(object):
         return data
 
 
+def has_whitespace(s):
+    return True in [c in s for c in string.whitespace]
+
+
 def main(drivepath, ioc=None, infile=None):
     # Check if python version is v3.6+
     if sys.version_info[0] == 3 and sys.version_info[1] <= 5:
@@ -65,8 +71,9 @@ def main(drivepath, ioc=None, infile=None):
     WRK.count = 0
     if ioc:
         # check if ioc contains spaces
-        if len(ioc) > 1:
-            sys.exit(f"{Fore.RED}[ERROR]{Fore.RESET} Please surround your query with double qoutes.")
+        if [i for i in ioc[:-1] if ',' not in str(i.split(','))]:
+            sys.exit(
+                "Appears to be a space in IOC string.  Ensure IOC strings with spaces are surrounded by double quotes.")
         with open(WRK.save_iocs_csv(), 'w', newline='') as csvfile:
             fieldnames = ['Path', 'Size', 'Created', 'Hash']  # nopep8
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)  # nopep8
@@ -78,8 +85,8 @@ def main(drivepath, ioc=None, infile=None):
                                            ncols=80, unit=" files"):
                     for filename in files:
                         for item in ioc:
-                            if fnmatch.fnmatch(filename, item+r'*', flags=fnmatch.IGNORECASE):
-                                try:
+                            try:
+                                if PurePath(filename).match(item.strip(',')):
                                     path = os.path.join(root, filename)
                                     created = datetime.fromtimestamp(os.stat(path).st_ctime)  # nopep8
                                     size = os.stat(path).st_size
@@ -88,15 +95,15 @@ def main(drivepath, ioc=None, infile=None):
                                                        'Created': f"{created:%Y-%m-%d}",
                                                        'Hash': WRK.sha256(path)}])
                                     WRK.count += 1
-                                except PermissionError:
-                                    continue
-                                except WindowsError:
-                                    continue
-                                except Exception as err:
-                                    print(f"{WRK.error} {err}")
+                            except PermissionError:
+                                continue
+                            except WindowsError:
+                                continue
+                            except Exception as err:
+                                print(f"{WRK.error} {err}")
             except KeyboardInterrupt:
                 sys.exit("Terminated")
-                
+
     elif infile:
         # check if IOC's file is empty (no IOCs)
         if os.path.getsize(WRK.iocs_file()) < 40:
@@ -162,7 +169,7 @@ if __name__ == '__main__':
     parser.add_argument('path', help="Path to search")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('-i', '--ioc', nargs='+', type=str,
-                       help="Single or list of IOCs (comma/space separated)")
+                       help="Single or list of IOCs (comma separated)")
     group.add_argument('-f', '--infile', action='store_true', default=WRK.iocs_file(),
                        help="Uses 'known_iocs.txt' file containing IOCs")
 
@@ -170,6 +177,5 @@ if __name__ == '__main__':
 
     if len(sys.argv[1:]) == 0:
         parser.print_help()
-        parser.exit()
 
     main(args.path, args.ioc, args.infile)
