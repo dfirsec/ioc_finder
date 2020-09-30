@@ -12,10 +12,9 @@ from pathlib import Path, PurePath
 from colorama import Fore
 from colorama import init as color_init
 from tqdm import tqdm
-from wcmatch import fnmatch
 
 __author__ = "DFIRSec (@pulsecode)"
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 __description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
 
 
