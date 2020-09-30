@@ -14,7 +14,7 @@ from colorama import init as color_init
 from tqdm import tqdm
 
 __author__ = "DFIRSec (@pulsecode)"
-__version__ = "0.0.5"
+__version__ = "0.0.6"
 __description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
 
 
@@ -80,7 +80,7 @@ def main(drivepath, ioc=None, infile=None):
                     for filename in files:
                         for item in ioc:
                             try:
-                                if PurePath(filename).match(item.strip(',')):
+                                if PurePath(filename).match(item.strip(',')+r'*'):
                                     path = os.path.join(root, filename)
                                     created = datetime.fromtimestamp(os.stat(path).st_ctime)  # nopep8
                                     size = os.stat(path).st_size
