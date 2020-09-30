@@ -59,10 +59,6 @@ class Workers(object):
         return data
 
 
-def has_whitespace(s):
-    return True in [c in s for c in string.whitespace]
-
-
 def main(drivepath, ioc=None, infile=None):
     # Check if python version is v3.6+
     if sys.version_info[0] == 3 and sys.version_info[1] <= 5:
@@ -72,7 +68,7 @@ def main(drivepath, ioc=None, infile=None):
     if ioc:
         # check if ioc contains spaces
         if [i for i in ioc[:-1] if ',' not in str(i.split(','))]:
-            sys.exit(f'{Fore.LIGHTRED_EX}[ERROR]{Fore.RESET} Surround IOC string that contains spaces with double quotes, e.g., {Fore.LIGHTMAGENTA_EX}"find me now.zip"{Fore.RESET}.')  #nopep8
+            sys.exit(f'Surround IOC string that contains spaces with double quotes, e.g., {Fore.LIGHTMAGENTA_EX}"find me now.zip"{Fore.RESET}.')  # nopep8
         with open(WRK.save_iocs_csv(), 'w', newline='') as csvfile:
             fieldnames = ['Path', 'Size', 'Created', 'Hash']  # nopep8
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)  # nopep8
