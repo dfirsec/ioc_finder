@@ -15,7 +15,7 @@ from tqdm import tqdm
 from wcmatch import fnmatch
 
 __author__ = "DFIRSec (@pulsecode)"
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 __description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
 
 
@@ -72,8 +72,7 @@ def main(drivepath, ioc=None, infile=None):
     if ioc:
         # check if ioc contains spaces
         if [i for i in ioc[:-1] if ',' not in str(i.split(','))]:
-            sys.exit(
-                "Appears to be a space in IOC string.  Ensure IOC strings with spaces are surrounded by double quotes.")
+            sys.exit(f'{Fore.LIGHTRED_EX}[ERROR]{Fore.RESET} Surround IOC string that contains spaces with double quotes, e.g., {Fore.LIGHTMAGENTA_EX}"find me now.zip"{Fore.RESET}.')  #nopep8
         with open(WRK.save_iocs_csv(), 'w', newline='') as csvfile:
             fieldnames = ['Path', 'Size', 'Created', 'Hash']  # nopep8
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)  # nopep8
