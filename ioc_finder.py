@@ -8,12 +8,12 @@ from argparse import ArgumentParser
 from datetime import datetime
 from pathlib import Path
 
-from colorama import Back, Fore, Style, init
+from colorama import Fore, init as color_init
 from tqdm import tqdm
 from wcmatch import fnmatch
 
 __author__ = "DFIRSec (@pulsecode)"
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 __description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
 
 
@@ -25,6 +25,7 @@ class Workers(object):
     results = filepath / 'results'
     iocs = filepath / 'iocs'
     hostname = socket.gethostname().upper()
+    color_init()
 
     # Unicode Symbols and colors -  ref: http://www.fileformat.info/info/unicode/char/a.htm
     processing = f'{Fore.CYAN}\u2BA9{Fore.RESET}'
@@ -41,7 +42,8 @@ class Workers(object):
         timestr = time.strftime("%Y%m%d-%H%M%S")
         return self.results / f'{WRK.hostname}_{timestr}.csv'
 
-    def sha256(self, fname):
+    @staticmethod
+    def sha256(fname):
         hash_sha256 = hashlib.sha256()
         with open(fname, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
@@ -62,33 +64,39 @@ def main(drivepath, ioc=None, infile=None):
 
     WRK.count = 0
     if ioc:
+        # check if ioc contains spaces
+        if len(ioc) > 1:
+            sys.exit(f"{Fore.RED}[ERROR]{Fore.RESET} Please surround your query with double qoutes.")
         with open(WRK.save_iocs_csv(), 'w', newline='') as csvfile:
             fieldnames = ['Path', 'Size', 'Created', 'Hash']  # nopep8
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)  # nopep8
             writer.writeheader()
-            for root, _, files in tqdm(os.walk(drivepath),
-                                       ascii=True,
-                                       desc=f"{WRK.processing} Searching for IOCs on {WRK.hostname}",
-                                       ncols=80, unit=" files"):
-                for filename in files:
-                    for item in ioc:
-                        if fnmatch.fnmatch(filename, item+r'*', flags=fnmatch.IGNORECASE):
-                            try:
-                                path = os.path.join(root, filename)
-                                created = datetime.fromtimestamp(os.stat(path).st_ctime)  # nopep8
-                                size = os.stat(path).st_size
-                                writer.writerows([{'Path': path,
-                                                   'Size': size,
-                                                   'Created': f"{created:%Y-%m-%d}",
-                                                   'Hash': WRK.sha256(path)}])
-                                WRK.count += 1
-                            except PermissionError:
-                                continue
-                            except WindowsError:
-                                continue
-                            except Exception as err:
-                                print(f"{WRK.error} {err}")
-
+            try:
+                for root, _, files in tqdm(os.walk(drivepath),
+                                           ascii=True,
+                                           desc=f"{WRK.processing} Searching for IOCs on {WRK.hostname}",
+                                           ncols=80, unit=" files"):
+                    for filename in files:
+                        for item in ioc:
+                            if fnmatch.fnmatch(filename, item+r'*', flags=fnmatch.IGNORECASE):
+                                try:
+                                    path = os.path.join(root, filename)
+                                    created = datetime.fromtimestamp(os.stat(path).st_ctime)  # nopep8
+                                    size = os.stat(path).st_size
+                                    writer.writerows([{'Path': path,
+                                                       'Size': size,
+                                                       'Created': f"{created:%Y-%m-%d}",
+                                                       'Hash': WRK.sha256(path)}])
+                                    WRK.count += 1
+                                except PermissionError:
+                                    continue
+                                except WindowsError:
+                                    continue
+                                except Exception as err:
+                                    print(f"{WRK.error} {err}")
+            except KeyboardInterrupt:
+                sys.exit("Terminated")
+                
     elif infile:
         # check if IOC's file is empty (no IOCs)
         if os.path.getsize(WRK.iocs_file()) < 40:
@@ -99,25 +107,28 @@ def main(drivepath, ioc=None, infile=None):
             fieldnames = ['Path', 'Size', 'Created', 'Hash']  # nopep8
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)  # nopep8
             writer.writeheader()
-            for root, _, files in tqdm(os.walk(drivepath),
-                                       ascii=True,
-                                       desc=f"{WRK.processing} Searching for IOCs on {WRK.hostname}",
-                                       ncols=80, unit=" files"):
-                for filename in files:
-                    if filename.lower() in (name.lower() for name in ioc_str):
-                        try:
-                            path = os.path.join(root, filename)
-                            created = datetime.fromtimestamp(os.stat(path).st_ctime)  # nopep8
-                            size = os.stat(path).st_size
-                            WRK.count += 1
-                            writer.writerows([{'Path': path,
-                                               'Size': size,
-                                               'Created': f"{created:%Y-%m-%d}",
-                                               'Hash': WRK.sha256(path)}])
-                        except (PermissionError, WindowsError):
-                            continue
-                        except Exception as err:
-                            print(f"{WRK.error} {err}")
+            try:
+                for root, _, files in tqdm(os.walk(drivepath),
+                                           ascii=True,
+                                           desc=f"{WRK.processing} Searching for IOCs on {WRK.hostname}",
+                                           ncols=80, unit=" files"):
+                    for filename in files:
+                        if filename.lower() in (name.lower() for name in ioc_str):
+                            try:
+                                path = os.path.join(root, filename)
+                                created = datetime.fromtimestamp(os.stat(path).st_ctime)  # nopep8
+                                size = os.stat(path).st_size
+                                WRK.count += 1
+                                writer.writerows([{'Path': path,
+                                                   'Size': size,
+                                                   'Created': f"{created:%Y-%m-%d}",
+                                                   'Hash': WRK.sha256(path)}])
+                            except (PermissionError, WindowsError):
+                                continue
+                            except Exception as err:
+                                print(f"{WRK.error} {err}")
+            except KeyboardInterrupt:
+                sys.exit("Terminated")
 
     if WRK.count:
         print(f"\n{WRK.found} Found {WRK.count} IOCs on {WRK.hostname}")
