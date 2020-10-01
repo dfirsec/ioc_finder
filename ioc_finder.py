@@ -15,7 +15,7 @@ from prettytable import from_csv
 from tqdm import tqdm
 
 __author__ = "DFIRSec (@pulsecode)"
-__version__ = "v0.0.7"
+__version__ = "v0.0.8"
 __description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
 
 
