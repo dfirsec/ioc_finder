@@ -180,14 +180,16 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('path', help="Path to search")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-i', '--ioc', nargs='+', type=str,
+    group.add_argument('-i', nargs='+', type=str, metavar='',
                        help="Single or list of IOCs (comma separated)")
-    group.add_argument('-f', '--infile', action='store_true', default=WRK.iocs_file(),
+    group.add_argument('-f', action='store_true', default=WRK.iocs_file(),
                        help="Uses 'known_iocs.txt' file containing IOCs")
 
     args = parser.parse_args()
 
     if len(sys.argv[1:]) == 0:
         parser.print_help()
-
-    main(args.path, args.ioc, args.infile)
+    else:
+        ioc = args.i
+        infile = args.f
+        main(args.path, ioc, infile)
