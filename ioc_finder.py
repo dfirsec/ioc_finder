@@ -89,9 +89,7 @@ def main(drivepath, ioc=None, infile=None):
                                                        'Created': f"{created:%Y-%m-%d}",
                                                        'Hash': WRK.sha256(path)}])
                                     WRK.count += 1
-                            except PermissionError:
-                                continue
-                            except WindowsError:
+                            except (PermissionError, WindowsError):
                                 continue
                             except Exception as err:
                                 print(f"{WRK.error} {err}")
