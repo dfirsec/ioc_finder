@@ -8,13 +8,14 @@ from argparse import ArgumentParser
 from datetime import datetime
 from pathlib import Path, PurePath
 
+import requests
 from colorama import Fore
 from colorama import init as color_init
 from prettytable import from_csv
 from tqdm import tqdm
 
 __author__ = "DFIRSec (@pulsecode)"
-__version__ = "0.0.7"
+__version__ = "v0.0.7"
 __description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
 
 
@@ -170,7 +171,7 @@ if __name__ == '__main__':
        _/ // /_/ / /___   / __/ / / / / / /_/ /  __/ /
       /___/\____/\____/  /_/   /_/_/ /_/\__,_/\___/_/
       
-                                    v{__version__}
+                                    {__version__}
                                     {__author__}
     '''
 
@@ -186,6 +187,14 @@ if __name__ == '__main__':
                        help="Uses 'known_iocs.txt' file containing IOCs")
 
     args = parser.parse_args()
+
+    # check if new version is available
+    try:
+        latest = requests.get("https://api.github.com/repos/dfirsec/ioc_finder/releases/latest").json()["tag_name"]  # nopep8
+        if latest != __version__:
+            print(f"{Fore.YELLOW}* Release {latest} of ioc_finder is available{Fore.RESET}")  # nopep8
+    except Exception as err:
+        print(f"{Fore.LIGHTRED_EX}[Error]{Fore.RESET} {err}\n")
 
     if len(sys.argv[1:]) == 0:
         parser.print_help()
