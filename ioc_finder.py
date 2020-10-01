@@ -2,7 +2,6 @@ import csv
 import hashlib
 import os
 import socket
-import string
 import sys
 import time
 from argparse import ArgumentParser
@@ -11,10 +10,11 @@ from pathlib import Path, PurePath
 
 from colorama import Fore
 from colorama import init as color_init
+from prettytable import from_csv
 from tqdm import tqdm
 
 __author__ = "DFIRSec (@pulsecode)"
-__version__ = "0.0.6"
+__version__ = "0.0.7"
 __description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
 
 
@@ -58,6 +58,26 @@ class Workers(object):
         return data
 
 
+def ptable_to_term():
+    # output latest csv file to terminal
+    csv_files = Path(WRK.results).glob('*.csv')
+    latest_csv = max(csv_files, key=os.path.getctime)
+
+    with open(latest_csv) as f:
+        x = from_csv(f)
+    x.align = 'l'
+    print(x)
+
+
+def remove_output():
+    # Remove empty results - not the best method, but it works
+    csv_files = Path(WRK.results).glob('*.csv')
+    files = [x for x in csv_files if x.is_file()]
+    for csv in files:
+        if os.stat(csv).st_size < 25:
+            os.remove(csv)
+
+
 def main(drivepath, ioc=None, infile=None):
     # Check if python version is v3.6+
     if sys.version_info[0] == 3 and sys.version_info[1] <= 5:
@@ -94,7 +114,9 @@ def main(drivepath, ioc=None, infile=None):
                             except Exception as err:
                                 print(f"{WRK.error} {err}")
             except KeyboardInterrupt:
-                sys.exit("Terminated")
+                csvfile.close()
+                remove_output()
+                sys.exit("\nAborted!")
 
     elif infile:
         # check if IOC's file is empty (no IOCs)
@@ -127,19 +149,17 @@ def main(drivepath, ioc=None, infile=None):
                             except Exception as err:
                                 print(f"{WRK.error} {err}")
             except KeyboardInterrupt:
-                sys.exit("Terminated")
+                csvfile.close()
+                remove_output()
+                sys.exit("\nAborted!")
 
     if WRK.count:
         print(f"\n{WRK.found} Found {WRK.count} IOCs on {WRK.hostname}")
-        print(f"    --> Results saved to {WRK.save_iocs_csv()}")
+        print(f"    --> Results saved to {WRK.save_iocs_csv()}\n")
+        ptable_to_term()
     else:
         print(f"{WRK.notfound} No matches for IOCs")
-        # Remove empty results - not the best method, but it works
-        p = WRK.results.glob('**/*')
-        files = [x for x in p if x.is_file()]
-        for _file in files:
-            if os.stat(_file).st_size < 25:
-                os.remove(_file)
+        remove_output()
 
 
 if __name__ == '__main__':
