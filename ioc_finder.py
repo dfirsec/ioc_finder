@@ -64,12 +64,10 @@ def ptable_to_term():
     csv_files = Path(WRK.results).glob('*.csv')
     latest_csv = max(csv_files, key=os.path.getctime)
 
-    
     with open(latest_csv) as f:
         x = prettytable.from_csv(f, delimiter=',')
     x.align = 'l'
     print(x)
-   
 
 
 def remove_output():
