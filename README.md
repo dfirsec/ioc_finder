@@ -2,7 +2,8 @@
 
 ![Generic badge](https://img.shields.io/badge/python-3.7-blue.svg) [![Twitter](https://img.shields.io/badge/Twitter-@pulsecode-blue.svg)](https://twitter.com/pulsecode)
 
-```ioc_finder.py``` Quick and dirty method to search for filenames that match IOCs if file hashes are not yet available.  A better and more comprehensive method would be to use Yara.
+```ioc_finder.py``` Quick and dirty method to search for filenames that match IOCs if file hashes are not yet available.  
+                    A more comprehensive method would be to use Yara.
 
 ```console
 
