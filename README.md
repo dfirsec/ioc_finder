@@ -18,10 +18,9 @@ positional arguments:
   path                  Path to search
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -i IOC [IOC ...], --ioc IOC [IOC ...]
-                        Single or list of IOCs (comma/space separated)
-  -f, --file            Uses 'known_iocs.txt' file containing IOCs
+  -h, --help  show this help message and exit
+  -i  [ ...]  Single or list of IOCs (comma separated)
+  -f          Uses 'known_iocs.txt' file containing IOCs
 ```
 
 ## Installation
@@ -37,8 +36,9 @@ pip install -r requirements.txt
 ### -i/--ioc option
 
 ```text
-python ioc_finder.py c:\ sysname --ioc bad
-⮩ Searching for IOCs on SYS-NAME: 38934 files [00:08, 4794.81 files/s]
+python ioc_finder.py c:\ --ioc bad
+> Searching for IOCs on SYS-NAME: 38934 files [00:08, 4794.81 files/s]
+
 ✔ Found 2 IOCs on SYS-NAME
     --> Results saved to results\SYS-NAME_20200220-203455.csv
 ```
@@ -46,12 +46,12 @@ python ioc_finder.py c:\ sysname --ioc bad
 The *--ioc* option uses a wildcard match (\*) for anything after the end of the string, e.g, searching for 'bad' would yield 'badapple', 'badfruit', 'badtaste', etc, and also ignores the string case.
 
 You can also search using a list of items (comma/space separated):
-```python ioc_finder.py c:\ sysname -i bad, pizza, cheese, apple```
+```python ioc_finder.py c:\ -i bad, pizza, cheese, apple```
 
 Adding a '.' to the end of the string will return the string + any extension.
 
 ```text
-python ioc_finder.py c:\ sysname --ioc bad.
+python ioc_finder.py c:\ --ioc bad.
 +------------------------------------------|+---------+------------+----------------------------------+
 | File name                                |    Size  | Created    | Hash                             |
 +------------------------------------------|+---------+------------+----------------------------------+
@@ -78,8 +78,9 @@ lookhere.dll
 Example run...
 
 ```text
-python ioc_finder.py c:\ sysname -f
+python ioc_finder.py c:\ -f
 ⮩ Searching for IOCs on SYS-NAME: 38934 files [00:08, 4794.81 files/s]
+
 ✔ Found 2 IOCs on SYS-NAME
     --> Results saved to results\SYS-NAME_20200220-203455.csv
 ```
