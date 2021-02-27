@@ -1,4 +1,4 @@
-colorama==0.4.3
-prettytable==0.7.2
-requests==2.24.0
-tqdm==4.50.0
+colorama>=0.4.3
+prettytable>=0.7.2
+requests>=2.24.0
+tqdm>=4.50.0
