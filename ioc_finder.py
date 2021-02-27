@@ -206,10 +206,10 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("path", help="Path to search")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-i", nargs="+", type=str, metavar="", help="Single or list of IOCs (comma separated)")
-    group.add_argument(
-        "-f", action="store_true", default=WRK.iocs_file(), help="Uses 'known_iocs.txt' file containing IOCs"
-    )
+    group.add_argument("-i", nargs="+", type=str, metavar="", 
+                       help="Single or list of IOCs (comma separated)")
+    group.add_argument("-f", action="store_true", default=WRK.iocs_file(), 
+                       help="Uses 'known_iocs.txt' file containing IOCs")
 
     args = parser.parse_args()
 

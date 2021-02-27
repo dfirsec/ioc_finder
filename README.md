@@ -33,17 +33,17 @@ pip install -r requirements.txt
 
 ## Options
 
-### -i/--ioc option
+### -i option
 
 ```text
-python ioc_finder.py c:\ --ioc bad
+python ioc_finder.py c:\ -i bad
 > Searching for IOCs on SYS-NAME: 38934 files [00:08, 4794.81 files/s]
 
 ✔ Found 2 IOCs on SYS-NAME
     --> Results saved to results\SYS-NAME_20200220-203455.csv
 ```
 
-The *--ioc* option uses a wildcard match (\*) for anything after the end of the string, e.g, searching for 'bad' would yield 'badapple', 'badfruit', 'badtaste', etc, and also ignores the string case.
+The *-i* option uses a wildcard match (\*) for anything after the end of the string, e.g, searching for 'bad' would yield 'badapple', 'badfruit', 'badtaste', etc, and also ignores the string case.
 
 You can also search using a list of items (comma/space separated):
 ```python ioc_finder.py c:\ -i bad, pizza, cheese, apple```
@@ -51,7 +51,7 @@ You can also search using a list of items (comma/space separated):
 Adding a '.' to the end of the string will return the string + any extension.
 
 ```text
-python ioc_finder.py c:\ --ioc bad.
+python ioc_finder.py c:\ -i bad.
 +------------------------------------------|+---------+------------+----------------------------------+
 | File name                                |    Size  | Created    | Hash                             |
 +------------------------------------------|+---------+------------+----------------------------------+
@@ -61,9 +61,9 @@ python ioc_finder.py c:\ --ioc bad.
 +------------------------------------------+----------+------------+----------------------------------+
 ```
 
-### -f/--file option
+### -f option
 
-The *--file* option is when you need to search for many filenames. It's currently limited to exact filename matching, however, it's case insensitive (will match upper and lower).
+The *-f* option is when you need to search for many filenames. It's currently limited to exact filename matching, however, it's case insensitive (will match upper and lower).
 
 Add your IOC filenames to the *'known_iocs.txt'* text file.
 
@@ -79,7 +79,7 @@ Example run...
 
 ```text
 python ioc_finder.py c:\ -f
-⮩ Searching for IOCs on SYS-NAME: 38934 files [00:08, 4794.81 files/s]
+> Searching for IOCs on SYS-NAME: 38934 files [00:08, 4794.81 files/s]
 
 ✔ Found 2 IOCs on SYS-NAME
     --> Results saved to results\SYS-NAME_20200220-203455.csv
