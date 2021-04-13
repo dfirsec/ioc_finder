@@ -44,7 +44,7 @@ class Workers(object):
         if not self.results.exists():
             self.results.mkdir(parents=True)
         timestr = time.strftime("%Y%m%d-%H%M%S")
-        return self.results / f"{WRK.hostname}_{timestr}.csv"
+        return self.results / f"{worker.hostname}_{timestr}.csv"
 
     @staticmethod
     def sha256(fname):
@@ -64,7 +64,7 @@ class Workers(object):
 
 def ptable_to_term():
     # output latest csv file to terminal
-    csv_files = Path(WRK.results).glob("*.csv")
+    csv_files = Path(worker.results).glob("*.csv")
     latest_csv = max(csv_files, key=os.path.getctime)
 
     with open(latest_csv) as fd:
@@ -79,7 +79,7 @@ def ptable_to_term():
 
 def remove_output():
     # Remove empty results - not the best method, but it works
-    csv_files = Path(WRK.results).glob("*.csv")
+    csv_files = Path(worker.results).glob("*.csv")
     files = [x for x in csv_files if x.is_file()]
     for csv in files:
         if os.stat(csv).st_size < 25:
@@ -87,16 +87,16 @@ def remove_output():
 
 
 def main(drivepath, ioc=None, infile=None):
-    # Check if python version is v3.6+
-    if sys.version_info[0] == 3 and sys.version_info[1] <= 5:
-        sys.exit(f"\n{WRK.error} Please use python version 3.6 or higher.\n")
+    # Check if python version is v3.7+
+    if sys.version_info[0] == 3 and sys.version_info[1] <= 7:
+        sys.exit(f"\n{worker.error} Please use python version 3.7 or higher.\n")
 
-    WRK.count = 0
+    worker.count = 0
     if ioc:
         # Check if ioc contains spaces
         if [i for i in ioc[:-1] if "," not in str(i.split(","))]:
             sys.exit(f'Surround string with double quotes, e.g., {Fore.LIGHTMAGENTA_EX}"find me now.zip"{Fore.RESET}.')
-        with open(WRK.save_iocs_csv(), "w", newline="") as csvfile:
+        with open(worker.save_iocs_csv(), "w", newline="") as csvfile:
             fieldnames = ["Path", "Size", "Created", "Hash"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
@@ -104,7 +104,7 @@ def main(drivepath, ioc=None, infile=None):
                 for root, _, files in tqdm(
                     os.walk(drivepath),
                     ascii=True,
-                    desc=f"{WRK.processing} Searching for IOCs on {WRK.hostname}",
+                    desc=f"{worker.processing} Searching for IOCs on {worker.hostname}",
                     ncols=80,
                     unit=" files",
                 ):
@@ -121,27 +121,27 @@ def main(drivepath, ioc=None, infile=None):
                                                 "Path": path,
                                                 "Size": size,
                                                 "Created": f"{created:%Y-%m-%d}",
-                                                "Hash": WRK.sha256(path),
+                                                "Hash": worker.sha256(path),
                                             }
                                         ]
                                     )
-                                    WRK.count += 1
+                                    worker.count += 1
                             except (PermissionError, WindowsError):
                                 continue
                             except Exception as err:
-                                print(f"{WRK.error} {err}")
+                                print(f"{worker.error} {err}")
             except KeyboardInterrupt:
                 csvfile.close()
                 remove_output()
                 sys.exit("\nAborted!")
 
     elif infile:
-        # Check if IOC's file is empty (no IOCs)
-        if os.path.getsize(WRK.iocs_file()) < 40:
-            sys.exit(f"\n{WRK.error} Missing IOCs -- The {WRK.iocs_file()} file appears to be empty.\n")
+        # Check if IOC's file is empty
+        if os.path.getsize(worker.iocs_file()) < 40:
+            sys.exit(f"\n{worker.error} Missing IOCs -- The {worker.iocs_file()} file appears to be empty.\n")
 
-        ioc_str = WRK.read_file()
-        with open(WRK.save_iocs_csv(), "w", newline="") as csvfile:
+        ioc_str = worker.read_file()
+        with open(worker.save_iocs_csv(), "w", newline="") as csvfile:
             fieldnames = ["Path", "Size", "Created", "Hash"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
@@ -149,7 +149,7 @@ def main(drivepath, ioc=None, infile=None):
                 for root, _, files in tqdm(
                     os.walk(drivepath),
                     ascii=True,
-                    desc=f"{WRK.processing} Searching for IOCs on {WRK.hostname}",
+                    desc=f"{worker.processing} Searching for IOCs on {worker.hostname}",
                     ncols=80,
                     unit=" files",
                 ):
@@ -159,32 +159,32 @@ def main(drivepath, ioc=None, infile=None):
                                 path = os.path.join(root, filename)
                                 created = datetime.fromtimestamp(os.stat(path).st_ctime)
                                 size = os.stat(path).st_size
-                                WRK.count += 1
+                                worker.count += 1
                                 writer.writerows(
                                     [
                                         {
                                             "Path": path,
                                             "Size": size,
                                             "Created": f"{created:%Y-%m-%d}",
-                                            "Hash": WRK.sha256(path),
+                                            "Hash": worker.sha256(path),
                                         }
                                     ]
                                 )
                             except (PermissionError, WindowsError):
                                 continue
                             except Exception as err:
-                                print(f"{WRK.error} {err}")
+                                print(f"{worker.error} {err}")
             except KeyboardInterrupt:
                 csvfile.close()
                 remove_output()
                 sys.exit("\nAborted!")
 
-    if WRK.count:
-        print(f"\n{WRK.found} Found {WRK.count} IOCs on {WRK.hostname}")
-        print(f"    --> Results saved to {WRK.save_iocs_csv()}\n")
+    if worker.count:
+        print(f"\n{worker.found} Found {worker.count} IOCs on {worker.hostname}")
+        print(f"    --> Results saved to {worker.save_iocs_csv()}\n")
         ptable_to_term()
     else:
-        print(f"{WRK.notfound} No matches for IOCs")
+        print(f"{worker.notfound} No matches for IOCs")
         remove_output()
 
 
@@ -202,14 +202,14 @@ if __name__ == "__main__":
 
     print(f"{Fore.CYAN}{banner}{Fore.RESET}")
 
-    WRK = Workers()
+    worker = Workers()
     parser = ArgumentParser()
     parser.add_argument("path", help="Path to search")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-i", nargs="+", type=str, metavar="", 
-                       help="Single or list of IOCs (comma separated)")
-    group.add_argument("-f", action="store_true", default=WRK.iocs_file(), 
-                       help="Uses 'known_iocs.txt' file containing IOCs")
+    group.add_argument("-i", nargs="+", type=str, metavar="", help="Single or list of IOCs (comma separated)")
+    group.add_argument(
+        "-f", action="store_true", default=worker.iocs_file(), help="Uses 'known_iocs.txt' file containing IOCs"
+    )
 
     args = parser.parse_args()
 
