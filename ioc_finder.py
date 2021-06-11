@@ -180,8 +180,6 @@ def main(drivepath, ioc=None, infile=None):
                                 )
                             except (PermissionError, OSError):
                                 continue
-                            except Exception as err:
-                                print(f"{worker.error} {err}")
             except KeyboardInterrupt:
                 csvfile.close()
                 remove_output()
