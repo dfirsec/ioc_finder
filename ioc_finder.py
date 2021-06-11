@@ -136,8 +136,6 @@ def main(drivepath, ioc=None, infile=None):
                                     worker.count += 1
                             except (PermissionError, OSError):
                                 continue
-                            except Exception as err:
-                                print(f"{worker.error} {err}")
             except KeyboardInterrupt:
                 csvfile.close()
                 remove_output()
