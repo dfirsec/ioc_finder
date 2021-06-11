@@ -89,9 +89,9 @@ def remove_output():
     # Remove empty results - not the best method, but it works
     csv_files = Path(worker.results).glob("*.csv")
     files = [x for x in csv_files if x.is_file()]
-    for csv in files:
-        if os.stat(csv).st_size < 25:
-            os.remove(csv)
+    for f in files:
+        if os.stat(f).st_size < 25:
+            os.remove(f)
 
 
 def main(drivepath, ioc=None, infile=None):
@@ -220,14 +220,6 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-
-    # Check if new version is available
-    try:
-        latest = requests.get("https://api.github.com/repos/dfirsec/ioc_finder/releases/latest").json()["tag_name"]
-        if latest != __version__:
-            print(f"{Fore.YELLOW}* Release {latest} of ioc_finder is available{Fore.RESET}")
-    except Exception as err:
-        print(f"{Fore.LIGHTRED_EX}[Error]{Fore.RESET} {err}\n")
 
     if len(sys.argv[1:]) == 0:
         parser.print_help()
