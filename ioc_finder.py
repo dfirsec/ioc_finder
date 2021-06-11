@@ -94,7 +94,7 @@ def remove_output():
             os.remove(f)
 
 
-def main(drivepath, ioc=None, file=None):
+def main(drivepath, ioc=None, infile=None):
     # Check if python version is v3.7+
     if sys.version_info[0] == 3 and sys.version_info[1] <= 7:
         sys.exit(f"\n{worker.error} Please use python version 3.7 or higher.\n")
@@ -141,7 +141,7 @@ def main(drivepath, ioc=None, file=None):
                 remove_output()
                 sys.exit("\nAborted!")
 
-    elif file:
+    elif infile:
         # Check if IOC's file is empty
         if os.path.getsize(worker.iocs_file()) < 40:
             sys.exit(f"\n{worker.error} Missing IOCs -- The {worker.iocs_file()} file appears to be empty.\n")
@@ -220,6 +220,4 @@ if __name__ == "__main__":
     if len(sys.argv[1:]) == 0:
         parser.print_help()
     else:
-        ioc = args.i
-        infile = args.f
-        main(args.path, ioc, infile)
+        main(args.path, args.i, args.f)
