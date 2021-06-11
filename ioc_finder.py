@@ -19,7 +19,7 @@ __version__ = "v0.1.0"
 __description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
 
 
-class Workers(object):
+class Workers():
     def __init__(self, count=None):
         self.count = count
 
@@ -126,7 +126,7 @@ def main(drivepath, ioc=None, infile=None):
                                         ]
                                     )
                                     worker.count += 1
-                            except (PermissionError, WindowsError):
+                            except (PermissionError, OSError):
                                 continue
                             except Exception as err:
                                 print(f"{worker.error} {err}")
@@ -170,7 +170,7 @@ def main(drivepath, ioc=None, infile=None):
                                         }
                                     ]
                                 )
-                            except (PermissionError, WindowsError):
+                            except (PermissionError, OSError):
                                 continue
                             except Exception as err:
                                 print(f"{worker.error} {err}")
