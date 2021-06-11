@@ -19,7 +19,7 @@ __version__ = "v0.1.0"
 __description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
 
 
-class Workers():
+class Workers:
     def __init__(self, count=None):
         self.count = count
 
@@ -57,9 +57,13 @@ class Workers():
     def read_file(self):
         with open(self.iocs_file(), "r") as f:
             # skip file header starting with '#'
-            next(f)
-            data = [data.strip() for data in f.readlines()]
-        return data
+            try:
+                next(f)
+                data = [data.strip() for data in f.readlines()]
+            except StopIteration:
+                pass
+            else:
+                return data
 
 
 def ptable_to_term():
@@ -69,12 +73,16 @@ def ptable_to_term():
 
     with open(latest_csv) as fd:
         rd = csv.reader(fd, delimiter=",")
-        pt = PrettyTable(next(rd))
-        for row in rd:
-            pt.add_row(row)
+        try:
+            pt = PrettyTable(next(rd))
+        except StopIteration:
+            pass
+        else:
+            for row in rd:
+                pt.add_row(row)
 
-    pt.align = "l"
-    print(pt)
+            pt.align = "l"
+            print(pt)
 
 
 def remove_output():
