@@ -94,7 +94,7 @@ def remove_output():
             os.remove(f)
 
 
-def main(drivepath, ioc=None, infile=None):
+def main(drivepath, cont=None, ioc=None, infile=None):
     # Check if python version is v3.7+
     if sys.version_info[0] == 3 and sys.version_info[1] <= 7:
         sys.exit(f"\n{worker.error} Please use python version 3.7 or higher.\n")
@@ -118,8 +118,13 @@ def main(drivepath, ioc=None, infile=None):
                 ):
                     for filename in files:
                         for item in ioc:
+                            item = item.strip(",")
                             try:
-                                if PurePath(filename).match(item.strip(",") + r"*"):
+                                if cont:
+                                    filematch = PurePath(filename).match(r"*" + item + r"*")
+                                else:
+                                    filematch = PurePath(filename).match(item + r"*")
+                                if filematch:
                                     path = os.path.join(root, filename)
                                     created = datetime.fromtimestamp(os.stat(path).st_ctime)
                                     size = os.stat(path).st_size
@@ -209,6 +214,7 @@ if __name__ == "__main__":
     worker = Workers()
     parser = ArgumentParser()
     parser.add_argument("path", help="Path to search")
+    parser.add_argument("-c", action="store_true", help="Name contains string")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("-i", nargs="+", type=str, metavar="", help="Single or list of IOCs (comma separated)")
     group.add_argument(
@@ -220,4 +226,4 @@ if __name__ == "__main__":
     if len(sys.argv[1:]) == 0:
         parser.print_help()
     else:
-        main(args.path, args.i, args.f)
+        main(args.path, args.c, args.i, args.f)
