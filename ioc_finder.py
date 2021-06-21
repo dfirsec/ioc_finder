@@ -94,15 +94,15 @@ def remove_output():
 
 
 def scantree(path):
-    try:
-        with os.scandir(path) as it:
-            for entry in it:
+    with os.scandir(path) as it:
+        for entry in it:
+            try:
                 if not entry.name.startswith(".") and entry.is_dir(follow_symlinks=False):
                     yield from scantree(entry.path)
                 else:
                     yield entry.path
-    except PermissionError as e:
-        print(e)
+            except PermissionError:
+                continue
 
 
 def main(drivepath, cont=None, ioc=None, infile=None):
