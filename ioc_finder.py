@@ -97,7 +97,9 @@ def scantree(path):
     with os.scandir(path) as it:
         for entry in it:
             try:
-                if not entry.name.startswith(".") and entry.is_dir(follow_symlinks=False):
+                if not entry.name.startswith(".") and entry.is_dir(
+                    follow_symlinks=False
+                ):
                     yield from scantree(entry.path)
                 else:
                     yield entry.path
@@ -114,7 +116,9 @@ def main(drivepath, cont=None, ioc=None, infile=None):
     if ioc:
         # Check if ioc contains spaces
         if [i for i in ioc[:-1] if "," not in str(i.split(","))]:
-            sys.exit(f'Surround string with double quotes, e.g., {Fore.LIGHTMAGENTA_EX}"find me now.zip"{Fore.RESET}.')
+            sys.exit(
+                f'Surround string with double quotes, e.g., {Fore.LIGHTMAGENTA_EX}"find me now.zip"{Fore.RESET}.'
+            )
         with open(worker.save_iocs_csv(), "w", newline="") as csvfile:
             fieldnames = ["Path", "Size", "Created", "Hash"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -162,7 +166,9 @@ def main(drivepath, cont=None, ioc=None, infile=None):
     elif infile:
         # Check if IOC's file is empty
         if os.path.getsize(worker.iocs_file()) < 40:
-            sys.exit(f"\n{worker.error} Missing IOCs -- The {worker.iocs_file()} file appears to be empty.\n")
+            sys.exit(
+                f"\n{worker.error} Missing IOCs -- The {worker.iocs_file()} file appears to be empty.\n"
+            )
 
         ioc_str = worker.read_file()
         with open(worker.save_iocs_csv(), "w", newline="") as csvfile:
@@ -229,9 +235,18 @@ if __name__ == "__main__":
     parser.add_argument("path", help="Path to search")
     parser.add_argument("-c", action="store_true", help="Name contains string")
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-i", nargs="+", type=str, metavar="", help="Single or list of IOCs (comma separated)")
     group.add_argument(
-        "-f", action="store_true", default=worker.iocs_file(), help="Uses 'known_iocs.txt' file containing IOCs"
+        "-i",
+        nargs="+",
+        type=str,
+        metavar="",
+        help="Single or list of IOCs (comma separated)",
+    )
+    group.add_argument(
+        "-f",
+        action="store_true",
+        default=worker.iocs_file(),
+        help="Uses 'known_iocs.txt' file containing IOCs",
     )
 
     args = parser.parse_args()
