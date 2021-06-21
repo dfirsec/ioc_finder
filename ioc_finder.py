@@ -8,14 +8,13 @@ from argparse import ArgumentParser
 from datetime import datetime
 from pathlib import Path, PurePath
 
-import requests
 from colorama import Fore
 from colorama import init as color_init
 from prettytable import PrettyTable
 from tqdm import tqdm
 
 __author__ = "DFIRSec (@pulsecode)"
-__version__ = "v0.1.0"
+__version__ = "v0.1.1"
 __description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
 
 
@@ -94,6 +93,18 @@ def remove_output():
             os.remove(f)
 
 
+def scantree(path):
+    try:
+        with os.scandir(path) as it:
+            for entry in it:
+                if not entry.name.startswith(".") and entry.is_dir(follow_symlinks=False):
+                    yield from scantree(entry.path)
+                else:
+                    yield entry.path
+    except PermissionError as e:
+        print(e)
+
+
 def main(drivepath, cont=None, ioc=None, infile=None):
     # Check if python version is v3.7+
     if sys.version_info[0] == 3 and sys.version_info[1] <= 7:
@@ -108,39 +119,41 @@ def main(drivepath, cont=None, ioc=None, infile=None):
             fieldnames = ["Path", "Size", "Created", "Hash"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
+            print(f"{worker.processing} Getting file count...", sep=" ", end=" ")
+            filecounter = len(list(scantree(drivepath)))
+            print(f"{filecounter:,} files")
             try:
-                for root, _, files in tqdm(
-                    os.walk(drivepath),
-                    ascii=True,
-                    desc=f"{worker.processing} Searching for IOCs on {worker.hostname}",
-                    ncols=80,
+                for filepath in tqdm(
+                    scantree(drivepath),
+                    total=filecounter,
+                    desc=f"{worker.processing} Processing",
+                    ncols=90,
                     unit=" files",
                 ):
-                    for filename in files:
-                        for item in ioc:
-                            item = item.strip(",")
-                            try:
-                                if cont:
-                                    filematch = PurePath(filename).match(r"*" + item + r"*")
-                                else:
-                                    filematch = PurePath(filename).match(item + r"*")
-                                if filematch:
-                                    path = os.path.join(root, filename)
-                                    created = datetime.fromtimestamp(os.stat(path).st_ctime)
-                                    size = os.stat(path).st_size
-                                    writer.writerows(
-                                        [
-                                            {
-                                                "Path": path,
-                                                "Size": size,
-                                                "Created": f"{created:%Y-%m-%d}",
-                                                "Hash": worker.sha256(path),
-                                            }
-                                        ]
-                                    )
-                                    worker.count += 1
-                            except (PermissionError, OSError):
-                                continue
+                    for item in ioc:
+                        item = item.strip(",")
+                        try:
+                            if cont:
+                                filematch = PurePath(filepath).match(r"*" + item + r"*")
+                            else:
+                                filematch = PurePath(filepath).match(item + r"*")
+                            if filematch:
+                                path = Path(filepath)
+                                created = datetime.fromtimestamp(os.stat(path).st_ctime)
+                                size = os.stat(path).st_size
+                                writer.writerows(
+                                    [
+                                        {
+                                            "Path": path,
+                                            "Size": size,
+                                            "Created": f"{created:%Y-%m-%d}",
+                                            "Hash": worker.sha256(path),
+                                        }
+                                    ]
+                                )
+                                worker.count += 1
+                        except (PermissionError, OSError):
+                            continue
             except KeyboardInterrupt:
                 csvfile.close()
                 remove_output()
