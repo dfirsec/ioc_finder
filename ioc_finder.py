@@ -20,6 +20,7 @@ __description__ = "Quick and dirty method to search for filenames that match IOC
 
 class Workers:
     def __init__(self, count=None):
+        """Returns number of matches found."""
         self.count = count
 
     filepath = Path(__file__).parent
@@ -105,23 +106,23 @@ def scantree(path):
                 continue
 
 
-def main(drivepath, cont=None, ioc=None, infile=None):
-    # Check if python version is v3.7+
-    if sys.version_info[0] == 3 and sys.version_info[1] <= 7:
-        sys.exit(f"\n{worker.error} Please use python version 3.7 or higher.\n")
-
+def main(drivepath, contains=None, ioc=None, infile=None):
     worker.count = 0
+
     if ioc:
         # Check if ioc contains spaces
         if [i for i in ioc[:-1] if "," not in str(i.split(","))]:
             sys.exit(f'Surround string with double quotes, e.g., {Fore.LIGHTMAGENTA_EX}"find me now.zip"{Fore.RESET}.')
+
         with open(worker.save_iocs_csv(), "w", newline="") as csvfile:
             fieldnames = ["Path", "Size", "Created", "Hash"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
+
             print(f"{worker.processing} Getting file count...", sep=" ", end=" ")
             filecounter = len(list(scantree(drivepath)))
             print(f"{filecounter:,} files")
+
             try:
                 for filepath in tqdm(
                     scantree(drivepath),
@@ -133,7 +134,7 @@ def main(drivepath, cont=None, ioc=None, infile=None):
                     for item in ioc:
                         item = item.strip(",")
                         try:
-                            if cont:
+                            if contains:
                                 filematch = PurePath(filepath).match(r"*" + item + r"*")
                             else:
                                 filematch = PurePath(filepath).match(item + r"*")
@@ -165,10 +166,12 @@ def main(drivepath, cont=None, ioc=None, infile=None):
             sys.exit(f"\n{worker.error} Missing IOCs -- The {worker.iocs_file()} file appears to be empty.\n")
 
         ioc_str = worker.read_file()
+
         with open(worker.save_iocs_csv(), "w", newline="") as csvfile:
             fieldnames = ["Path", "Size", "Created", "Hash"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
+
             try:
                 for root, _, files in tqdm(
                     os.walk(drivepath),
@@ -226,13 +229,18 @@ if __name__ == "__main__":
 
     worker = Workers()
     parser = ArgumentParser()
-    parser.add_argument("path", help="Path to search")
-    parser.add_argument("-c", action="store_true", help="Name contains string")
+    iocs_file = worker.iocs_file()
+
+    # Check if python version is v3.7+
+    if sys.version_info[0] == 3 and sys.version_info[1] <= 7:
+        sys.exit(f"\n{worker.error} Please use python version 3.7 or higher.\n")
+
+    parser.add_argument("path", type=Path, help="Path to search")
+    parser.add_argument("-c", action="store_true", help="name contains string")
+
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-i", nargs="+", type=str, metavar="", help="Single or list of IOCs (comma separated)")
-    group.add_argument(
-        "-f", action="store_true", default=worker.iocs_file(), help="Uses 'known_iocs.txt' file containing IOCs"
-    )
+    group.add_argument("-i", nargs="+", type=str, metavar="", help="single or list of IOCs (comma separated)")
+    group.add_argument("-f", action="store_true", default=iocs_file, help="use known_iocs.txt file containing IOCs")
 
     args = parser.parse_args()
 
