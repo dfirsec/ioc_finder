@@ -19,8 +19,9 @@ __description__ = "Quick and dirty method to search for filenames that match IOC
 
 
 class Workers:
+    """Returns number of matches found."""
+
     def __init__(self, count=None):
-        """Returns number of matches found."""
         self.count = count
 
     filepath = Path(__file__).parent
@@ -49,21 +50,22 @@ class Workers:
     @staticmethod
     def sha256(fname):
         hash_sha256 = hashlib.sha256()
-        with open(fname, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
+        with open(fname, "rb") as _file:
+            for chunk in iter(lambda: _file.read(4096), b""):
                 hash_sha256.update(chunk)
         return hash_sha256.hexdigest()
 
     def read_file(self):
-        with open(self.iocs_file(), "r") as f:
+        with open(self.iocs_file(), "r") as _file:
             # skip file header starting with '#'
             try:
-                next(f)
-                data = [data.strip() for data in f.readlines()]
+                next(_file)
+                data = [data.strip() for data in _file.readlines()]
             except StopIteration:
                 pass
             else:
                 return data
+            return None
 
 
 def ptable_to_term():
@@ -71,32 +73,32 @@ def ptable_to_term():
     csv_files = Path(worker.results).glob("*.csv")
     latest_csv = max(csv_files, key=os.path.getctime)
 
-    with open(latest_csv) as fd:
-        rd = csv.reader(fd, delimiter=",")
+    with open(latest_csv) as _file:
+        rdr = csv.reader(_file, delimiter=",")
         try:
-            pt = PrettyTable(next(rd))
+            ptable = PrettyTable(next(rdr))
         except StopIteration:
             pass
         else:
-            for row in rd:
-                pt.add_row(row)
+            for row in rdr:
+                ptable.add_row(row)
 
-            pt.align = "l"
-            print(pt)
+            ptable.align = "l"
+            print(ptable)
 
 
 def remove_output():
     # Remove empty results - not the best method, but it works
     csv_files = Path(worker.results).glob("*.csv")
     files = [x for x in csv_files if x.is_file()]
-    for f in files:
-        if os.stat(f).st_size < 25:
-            os.remove(f)
+    for _file in files:
+        if os.stat(_file).st_size < 25:
+            os.remove(_file)
 
 
 def scantree(path):
-    with os.scandir(path) as it:
-        for entry in it:
+    with os.scandir(path) as entries:
+        for entry in entries:
             try:
                 if not entry.name.startswith(".") and entry.is_dir(follow_symlinks=False):
                     yield from scantree(entry.path)
