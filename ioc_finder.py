@@ -1,5 +1,6 @@
 import csv
 import hashlib
+import itertools
 import os
 import socket
 import sys
@@ -35,7 +36,7 @@ class Workers:
     # Unicode Symbols and colors -  ref: http://www.fileformat.info/info/unicode/char/a.htm
     processing = f"{Fore.CYAN}>{Fore.RESET}"
     found = f"{Fore.GREEN}\u2714{Fore.RESET}"
-    notfound = f"{Fore.YELLOW}\u00D8{Fore.RESET}"
+    notfound = f"{Fore.YELLOW}\u0058{Fore.RESET}"
     error = f"{Fore.RED}\u2718{Fore.RESET}"
 
     def iocs_file(self):
@@ -56,7 +57,7 @@ class Workers:
         return hash_sha256.hexdigest()
 
     def read_file(self):
-        with open(self.iocs_file(), "r") as _file:
+        with open(self.iocs_file(), encoding="utf-8") as _file:
             # skip file header starting with '#'
             try:
                 next(_file)
@@ -73,7 +74,7 @@ def ptable_to_term():
     csv_files = Path(worker.results).glob("*.csv")
     latest_csv = max(csv_files, key=os.path.getctime)
 
-    with open(latest_csv) as _file:
+    with open(latest_csv, encoding="utf-8") as _file:
         rdr = csv.reader(_file, delimiter=",")
         try:
             ptable = PrettyTable(next(rdr))
@@ -116,52 +117,48 @@ def main(drivepath, contains=None, ioc=None, infile=None):
         if [i for i in ioc[:-1] if "," not in str(i.split(","))]:
             sys.exit(f'Surround string with double quotes, e.g., {Fore.LIGHTMAGENTA_EX}"find me now.zip"{Fore.RESET}.')
 
-        with open(worker.save_iocs_csv(), "w", newline="") as csvfile:
-            fieldnames = ["Path", "Size", "Created", "Hash"]
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-
+        with open(worker.save_iocs_csv(), "w", newline="", encoding="utf-8") as csvfile:
+            writer = write_to_csv(csvfile)
             print(f"{worker.processing} Getting file count...", sep=" ", end=" ")
             filecounter = len(list(scantree(drivepath)))
             print(f"{filecounter:,} files")
 
             try:
-                for filepath in tqdm(
-                    scantree(drivepath),
-                    total=filecounter,
-                    desc=f"{worker.processing} Processing",
-                    ncols=90,
-                    unit=" files",
+                for filepath, item in itertools.product(
+                    tqdm(
+                        scantree(drivepath),
+                        total=filecounter,
+                        desc=f"{worker.processing} Processing",
+                        ncols=90,
+                        unit=" files",
+                    ),
+                    ioc,
                 ):
-                    for item in ioc:
-                        item = item.strip(",")
-                        try:
-                            if contains:
-                                filematch = PurePath(filepath).match(r"*" + item + r"*")
-                            else:
-                                filematch = PurePath(filepath).match(item + r"*")
-                            if filematch:
-                                path = Path(filepath)
-                                created = datetime.fromtimestamp(os.stat(path).st_ctime)
-                                size = os.stat(path).st_size
-                                writer.writerows(
-                                    [
-                                        {
-                                            "Path": path,
-                                            "Size": size,
-                                            "Created": f"{created:%Y-%m-%d}",
-                                            "Hash": worker.sha256(path),
-                                        }
-                                    ]
-                                )
-                                worker.count += 1
-                        except (PermissionError, OSError):
-                            continue
-            except KeyboardInterrupt:
-                csvfile.close()
-                remove_output()
-                sys.exit("\nAborted!")
+                    item = item.strip(",")
+                    try:
+                        filematch = (
+                            PurePath(filepath).match(f"*{item}*") if contains else PurePath(filepath).match(f"{item}*")
+                        )
 
+                        if filematch:
+                            path = Path(filepath)
+                            created = datetime.fromtimestamp(os.stat(path).st_ctime)
+                            size = os.stat(path).st_size
+                            writer.writerows(
+                                [
+                                    {
+                                        "Path": path,
+                                        "Size": size,
+                                        "Created": f"{created:%Y-%m-%d}",
+                                        "Hash": worker.sha256(path),
+                                    }
+                                ]
+                            )
+                            worker.count += 1
+                    except OSError:
+                        continue
+            except KeyboardInterrupt:
+                abort_output(csvfile)
     elif infile:
         # Check if IOC's file is empty
         if os.path.getsize(worker.iocs_file()) < 40:
@@ -169,11 +166,8 @@ def main(drivepath, contains=None, ioc=None, infile=None):
 
         ioc_str = worker.read_file()
 
-        with open(worker.save_iocs_csv(), "w", newline="") as csvfile:
-            fieldnames = ["Path", "Size", "Created", "Hash"]
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-
+        with open(worker.save_iocs_csv(), "w", newline="", encoding="utf-8") as csvfile:
+            writer = write_to_csv(csvfile)
             try:
                 for root, _, files in tqdm(
                     os.walk(drivepath),
@@ -199,13 +193,10 @@ def main(drivepath, contains=None, ioc=None, infile=None):
                                         }
                                     ]
                                 )
-                            except (PermissionError, OSError):
+                            except OSError:
                                 continue
             except KeyboardInterrupt:
-                csvfile.close()
-                remove_output()
-                sys.exit("\nAborted!")
-
+                abort_output(csvfile)
     if worker.count:
         print(f"\n{worker.found} Found {worker.count} IOCs on {worker.hostname}")
         print(f"    --> Results saved to {worker.save_iocs_csv()}\n")
@@ -215,14 +206,28 @@ def main(drivepath, contains=None, ioc=None, infile=None):
         remove_output()
 
 
+def write_to_csv(csvfile):
+    fieldnames = ["Path", "Size", "Created", "Hash"]
+    result = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    result.writeheader()
+
+    return result
+
+
+def abort_output(csvfile):
+    csvfile.close()
+    remove_output()
+    sys.exit("\nAborted!")
+
+
 if __name__ == "__main__":
-    banner = fr"""
+    banner = rf"""
           ________  ______   _______           __
          /  _/ __ \/ ____/  / ____(_)___  ____/ /__  _____
          / // / / / /      / /_  / / __ \/ __  / _ \/ ___/
        _/ // /_/ / /___   / __/ / / / / / /_/ /  __/ /
       /___/\____/\____/  /_/   /_/_/ /_/\__,_/\___/_/
-      
+
                                     {__version__}
                                     {__author__}
     """
