@@ -2,7 +2,7 @@
 
 ![Generic badge](https://img.shields.io/badge/python-3.7-blue.svg) [![Twitter](https://img.shields.io/badge/Twitter-@pulsecode-blue.svg)](https://twitter.com/pulsecode)
 
-```ioc_finder.py``` Quick and dirty method to search for filenames that match IOCs if file hashes are not yet available.  
+```ioc_finder.py``` Quick and dirty method to search for filenames that match IOCs if file hashes are not yet available.
                     A more comprehensive method would be to use Yara.
 
 ```console
@@ -13,15 +13,16 @@
        _/ // /_/ / /___   / __/ / / / / / /_/ /  __/ /
       /___/\____/\____/  /_/   /_/_/ /_/\__,_/\___/_/
 
-usage: ioc_finder.py [-h] (-i IOC [IOC ...] | -f) path
+usage: ioc_finder.py [-h] [-c] (-i  [...] | -f) path
 
 positional arguments:
-  path                  Path to search
+  path        Path to search
 
-optional arguments:
+options:
   -h, --help  show this help message and exit
-  -i  [ ...]  Single or list of IOCs (comma separated)
-  -f          Uses 'known_iocs.txt' file containing IOCs
+  -c          ioc name contains string
+  -i  [ ...]  single or list of iocs (comma separated)
+  -f          use known_iocs.txt file containing iocs
 ```
 
 ## Installation
@@ -44,7 +45,7 @@ python ioc_finder.py c:\ -i bad
     --> Results saved to results\SYS-NAME_20200220-203455.csv
 ```
 
-The *-i* option uses a wildcard match (\*) for anything after the end of the string, e.g, searching for 'bad' would yield 'badapple', 'badfruit', 'badtaste', etc, and also ignores the string case.
+The *-i* option uses a wildcard match (\*) for anything after the end of the string, e.g, searching for 'bad' would yield '**bad**apple', '**bad**fruit', '**bad**taste', etc, and also ignores the string case.
 
 You can also search using a list of items (comma/space separated):
 ```python ioc_finder.py c:\ -i bad, pizza, cheese, apple```
@@ -61,6 +62,15 @@ python ioc_finder.py c:\ -i bad.
 | c:\Windows\bad.lnk                       |     429  | 2018-02-15 | 500758431b795b776e4erdfwed700cef |
 +------------------------------------------+----------+------------+----------------------------------+
 ```
+
+### -c option
+
+```text
+python ioc_finder.py c:\ -c -i bad
+> Searching for IOCs on SYS-NAME: 38934 files [00:08, 4794.81 files/s]
+```
+
+The *-c* option is used in conjunction with the *-i* option as a wildcard match (\*) for anything before and after the string, e.g, searching for 'bad' would yield 'one**bad**apple', 'one**bad**fruit', 'ihave**bad**taste', etc, and also ignores the string case.
 
 ### -f option
 
