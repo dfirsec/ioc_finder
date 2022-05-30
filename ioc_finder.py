@@ -15,7 +15,7 @@ from prettytable import PrettyTable
 from tqdm import tqdm
 
 __author__ = "DFIRSec (@pulsecode)"
-__version__ = "v0.1.1"
+__version__ = "v0.1.2"
 __description__ = "Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
 
 
@@ -70,6 +70,10 @@ class Workers:
 
 
 def ptable_to_term():
+    """
+    Opens the latest csv file in the results directory, and outputs it to the terminal using the
+    PrettyTable module
+    """
     # output latest csv file to terminal
     csv_files = Path(worker.results).glob("*.csv")
     latest_csv = max(csv_files, key=os.path.getctime)
@@ -89,6 +93,9 @@ def ptable_to_term():
 
 
 def remove_output():
+    """
+    If the file is less than 25 bytes, remove it
+    """
     # Remove empty results - not the best method, but it works
     csv_files = Path(worker.results).glob("*.csv")
     files = [x for x in csv_files if x.is_file()]
@@ -98,6 +105,11 @@ def remove_output():
 
 
 def scantree(path):
+    """
+    Recursively scans a directory tree and returns a generator of all the files in the tree
+
+    :param path: The path to the directory you want to scan
+    """
     with os.scandir(path) as entries:
         for entry in entries:
             try:
@@ -109,41 +121,100 @@ def scantree(path):
                 continue
 
 
-def main(drivepath, contains=None, ioc=None, infile=None):
-    worker.count = 0
+def ioc_processor(ioc, drivepath, contains):
+    """
+    Takes a list of IOCs, a drive path, and a boolean value (`contains`) and searches
+    the drive path for the IOCs. If the IOC is found, the file path, size, creation date, and SHA256
+    hash are written to a CSV file
 
-    if ioc:
-        # Check if ioc contains spaces
-        if [i for i in ioc[:-1] if "," not in str(i.split(","))]:
-            sys.exit(f'Surround string with double quotes, e.g., {Fore.LIGHTMAGENTA_EX}"find me now.zip"{Fore.RESET}.')
+    :param ioc: This is the list of IOCs that you want to search for
+    :param drivepath: The path to the drive you want to scan
+    :param contains: True or False
+    """
+    # Check if ioc contains spaces
+    if [i for i in ioc[:-1] if "," not in str(i.split(","))]:
+        sys.exit(f'Surround string with double quotes, e.g., {Fore.LIGHTMAGENTA_EX}"find me now.zip"{Fore.RESET}.')
 
-        with open(worker.save_iocs_csv(), "w", newline="", encoding="utf-8") as csvfile:
-            writer = write_to_csv(csvfile)
-            print(f"{worker.processing} Getting file count...", sep=" ", end=" ")
-            filecounter = len(list(scantree(drivepath)))
-            print(f"{filecounter:,} files")
+    with open(worker.save_iocs_csv(), "w", newline="", encoding="utf-8") as csvfile:
+        writer = write_to_csv(csvfile)
+        print(f"{worker.processing} Getting file count...", sep=" ", end=" ")
+        filecounter = len(list(scantree(drivepath)))
+        print(f"{filecounter:,} files")
 
-            try:
-                for filepath, item in itertools.product(
-                    tqdm(
-                        scantree(drivepath),
-                        total=filecounter,
-                        desc=f"{worker.processing} Processing",
-                        ncols=90,
-                        unit=" files",
-                    ),
-                    ioc,
-                ):
-                    item = item.strip(",")
-                    try:
-                        filematch = (
-                            PurePath(filepath).match(f"*{item}*") if contains else PurePath(filepath).match(f"{item}*")
+        try:
+            for filepath, item in itertools.product(
+                tqdm(
+                    scantree(drivepath),
+                    total=filecounter,
+                    desc=f"{worker.processing} Processing",
+                    ncols=90,
+                    unit=" files",
+                ),
+                ioc,
+            ):
+                item = item.strip(",")
+                try:
+                    filematch = (
+                        PurePath(filepath).match(f"*{item}*") if contains else PurePath(filepath).match(f"{item}*")
+                    )
+
+                    if filematch:
+                        path = Path(filepath)
+                        created = datetime.fromtimestamp(os.stat(path).st_ctime)
+                        size = os.stat(path).st_size
+                        writer.writerows(
+                            [
+                                {
+                                    "Path": path,
+                                    "Size": size,
+                                    "Created": f"{created:%Y-%m-%d}",
+                                    "Hash": worker.sha256(path),
+                                }
+                            ]
                         )
+                        worker.count += 1
+                except OSError:
+                    continue
+        except KeyboardInterrupt:
+            abort_output(csvfile)
 
-                        if filematch:
-                            path = Path(filepath)
+
+def infile_processor(drivepath):
+    """
+    Takes a drive path as an argument, reads the IOCs file, and then searches the drive for the IOCs.
+
+
+    If it finds an IOC, it writes the path, size, created date, and SHA256 hash to a CSV file.
+
+    If the IOCs file is empty, it exits.
+
+    If the user presses Ctrl+C, it writes the results to the CSV file and exits.
+
+    :param drivepath: The path to the drive you want to scan
+    """
+    # Check if IOC's file is empty
+    if os.path.getsize(worker.iocs_file()) < 40:
+        sys.exit(f"\n{worker.error} Missing IOCs -- The {worker.iocs_file()} file appears to be empty.\n")
+
+    ioc_str = worker.read_file()
+
+    with open(worker.save_iocs_csv(), "w", newline="", encoding="utf-8") as csvfile:
+        writer = write_to_csv(csvfile)
+        try:
+            for root, _, files in tqdm(
+                os.walk(drivepath),
+                ascii=True,
+                desc=f"{worker.processing} Searching for IOCs on {worker.hostname}",
+                ncols=80,
+                unit=" files",
+            ):
+                for filename in files:
+                    if filename.lower() in (name.lower() for name in ioc_str):
+                        try:
+                            path = os.path.join(root, filename)
                             created = datetime.fromtimestamp(os.stat(path).st_ctime)
                             size = os.stat(path).st_size
+                            worker.count += 1
                             writer.writerows(
                                 [
                                     {
@@ -154,49 +225,26 @@ def main(drivepath, contains=None, ioc=None, infile=None):
                                     }
                                 ]
                             )
-                            worker.count += 1
-                    except OSError:
-                        continue
-            except KeyboardInterrupt:
-                abort_output(csvfile)
+                        except OSError:
+                            continue
+        except KeyboardInterrupt:
+            abort_output(csvfile)
+
+
+def main(drivepath, contains=None, ioc=None, infile=None):
+    """
+    Takes a drive path, an IOC, or an input file, and then searches the drive for the IOCs
+
+    :param drivepath: The path to the drive you want to scan
+    :param ioc: The IOC you want to search for
+    :param infile: This is the file that contains the IOCs you want to search for
+    """
+    worker.count = 0
+    if ioc:
+        ioc_processor(ioc, drivepath, contains)
     elif infile:
-        # Check if IOC's file is empty
-        if os.path.getsize(worker.iocs_file()) < 40:
-            sys.exit(f"\n{worker.error} Missing IOCs -- The {worker.iocs_file()} file appears to be empty.\n")
+        infile_processor(drivepath)
 
-        ioc_str = worker.read_file()
-
-        with open(worker.save_iocs_csv(), "w", newline="", encoding="utf-8") as csvfile:
-            writer = write_to_csv(csvfile)
-            try:
-                for root, _, files in tqdm(
-                    os.walk(drivepath),
-                    ascii=True,
-                    desc=f"{worker.processing} Searching for IOCs on {worker.hostname}",
-                    ncols=80,
-                    unit=" files",
-                ):
-                    for filename in files:
-                        if filename.lower() in (name.lower() for name in ioc_str):
-                            try:
-                                path = os.path.join(root, filename)
-                                created = datetime.fromtimestamp(os.stat(path).st_ctime)
-                                size = os.stat(path).st_size
-                                worker.count += 1
-                                writer.writerows(
-                                    [
-                                        {
-                                            "Path": path,
-                                            "Size": size,
-                                            "Created": f"{created:%Y-%m-%d}",
-                                            "Hash": worker.sha256(path),
-                                        }
-                                    ]
-                                )
-                            except OSError:
-                                continue
-            except KeyboardInterrupt:
-                abort_output(csvfile)
     if worker.count:
         print(f"\n{worker.found} Found {worker.count} IOCs on {worker.hostname}")
         print(f"    --> Results saved to {worker.save_iocs_csv()}\n")
