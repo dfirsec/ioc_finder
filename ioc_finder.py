@@ -2,6 +2,7 @@ import csv
 import hashlib
 import itertools
 import os
+import platform
 import socket
 import sys
 import time
@@ -138,10 +139,9 @@ def ioc_processor(ioc, drivepath, contains):
     with open(worker.save_iocs_csv(), "w", newline="", encoding="utf-8") as csvfile:
         writer = write_to_csv(csvfile)
         print(f"{worker.processing} Getting file count...", sep=" ", end=" ")
-        filecounter = len(list(scantree(drivepath)))
-        print(f"{filecounter:,} files")
-
         try:
+            filecounter = len(list(scantree(drivepath)))
+            print(f"{filecounter:,} files")
             for filepath, item in itertools.product(
                 tqdm(
                     scantree(drivepath),
@@ -301,5 +301,7 @@ if __name__ == "__main__":
 
     if len(sys.argv[1:]) == 0:
         parser.print_help()
+    if platform.system() != "Windows":
+        sys.exit("Sorry, script is optimized for Windows systems only.")
     else:
         main(args.path, args.c, args.i, args.f)
