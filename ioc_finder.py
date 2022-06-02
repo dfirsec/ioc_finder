@@ -117,7 +117,7 @@ def scantree(path):
                     yield from scantree(entry.path)
                 else:
                     yield entry.path
-            except PermissionError:
+            except (PermissionError, FileNotFoundError):
                 continue
 
 
