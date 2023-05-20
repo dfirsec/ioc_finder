@@ -1,4 +1,4 @@
-"Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."
+"""Quick and dirty method to search for filenames that match IOCs if hashes are not yet available."""
 
 import contextlib
 import csv
@@ -7,12 +7,13 @@ import os
 import platform
 import socket
 import sys
-import time
 from argparse import ArgumentParser
+from collections.abc import Iterator
 from datetime import datetime
 from functools import partial
-from pathlib import Path, PurePath
-from typing import IO, Iterator, List
+from pathlib import Path
+from typing import IO
+from zoneinfo import ZoneInfo
 
 from colorama import Fore
 from rich.console import Console
@@ -23,41 +24,53 @@ from tqdm import tqdm
 console = Console()
 
 
-class Workers(object):
+class Workers:
     """Returns number of matches found."""
 
-    def __init__(self):
+    def __init__(self: "Workers") -> None:
+        """Initializes a count, filepath, output, IOCs file, and hostname."""
         self.count = 0
+        self.filepath = Path(__file__).parent
+        self.output = self.filepath / "results"
+        self.iocs = self.filepath / "iocs"
+        self.hostname = socket.gethostname().upper()
 
-    filepath = Path(__file__).parent
-    output = filepath / "results"
-    iocs = filepath / "iocs"
-    hostname = socket.gethostname().upper()
-
-    def iocs_file(self) -> Path:
-        """
-        Get the path to the file containing the known IOCs.
+    def iocs_file(self: "Workers") -> Path:
+        """Get the path to the file containing the known IOCs.
 
         Returns:
             Path: the path to the file containing the known IOCs.
         """
         return self.iocs / "known_iocs.txt"
 
-    def save_iocs_csv(self) -> Path:
-        """
-        Creates a directory called `results` in the current working directory and CSV file.
+    def check_iocs_file(self: "Workers") -> bool | None:
+        """Check if the IOCs file contains IOCs."""
+        first_line = "# ADD IOC FILENAMES BELOW THIS LINE"
+        with open(self.iocs_file(), encoding="utf-8") as file:
+            lines = file.readlines()
+
+        # Check if line is present after first line
+        return next(
+            (
+                any(next_line.strip() for next_line in lines[index + 1 :])
+                for index, line in enumerate(lines)
+                if first_line in line
+            ),
+            False,
+        )
+
+    def save_iocs_csv(self: "Workers") -> Path:
+        """Creates the `results` folder and CSV file.
 
         Returns:
             Path: The path to the file that will be created.
         """
-        if not self.output.exists():
-            self.output.mkdir(parents=True)
-        timestr = time.strftime("%Y%m%d-%H%M%S")
-        return self.output / f"{worker.hostname}_{timestr}.csv"
+        self.output.mkdir(parents=True, exist_ok=True)
+        timestr = datetime.now(ZoneInfo("UTC")).strftime("%Y%m%d-%H%M%S")
+        return self.output / f"{self.hostname}_{timestr}.csv"
 
-    def sha256(self, fname: str) -> str:
-        """
-        It reads the file in chunks of 4096 bytes and updates the hash object with each chunk.
+    def sha256(self: "Workers", fname: str) -> str:
+        """Returns the SHA256 hash of a file.
 
         Args:
             fname (str): The file name of the file you want to hash.
@@ -72,12 +85,11 @@ class Workers(object):
                 hash_sha256.update(chunk)
         return hash_sha256.hexdigest()
 
-    def read_file(self) -> List[str]:
-        """
-        Reads the file and returns the data.
+    def read_file(self: "Workers") -> list[str]:
+        """Reads the IOCs file.
 
         Returns:
-            A list of strings.
+            A list of strings represnting the IOCs.
         """
         with open(self.iocs_file(), encoding="utf-8") as fileobj:
             try:
@@ -88,9 +100,7 @@ class Workers(object):
 
 
 def ptable_to_term() -> None:
-    """
-    Output latest csv file to terminal.
-    """
+    """Output latest csv file to terminal."""
     csv_files = Path(worker.output).glob("*.csv")
     latest_csv = max(csv_files, key=os.path.getctime)
     table = Table(title="IOC Finder Results")
@@ -106,23 +116,24 @@ def ptable_to_term() -> None:
 
 
 def remove_output() -> None:
-    """
-    If the file is less than 25 bytes, remove it.
-    """
+    """If the file is less than 25 bytes, remove it."""
     # Remove empty results - not the best method, but it works
     csv_files = Path(worker.output).glob("*.csv")
     files = [csv for csv in csv_files if csv.is_file()]
     bytes_size = 25
     for filename in files:
-        if os.stat(filename).st_size < bytes_size:
-            os.remove(filename)
+        if Path(filename).stat().st_size < bytes_size:
+            Path(filename).unlink()
 
 
 def scantree(path: str) -> Iterator[str]:
-    """
-    Recursively scans a directory tree and returns a generator of all the files in the tree
+    """Recursively scans a directory tree and returns a generator of all the files in the tree.
 
-    path: The path to the directory you want to scan
+    Args:
+        path (str): The path to the directory you want to scan
+
+    Yields:
+         Iterator[str]: A generator of all the files in the tree.
     """
     with os.scandir(path) as entries:
         for entry in entries:
@@ -133,49 +144,42 @@ def scantree(path: str) -> Iterator[str]:
                     yield entry.path
 
 
-def process_filepath(filepath: str, ioc: List[str], contains: bool, writer: csv.DictWriter) -> None:
-    """
-    Searches for matches between the IOCs and the file path.
+def process_filepath(filepath: str, ioc: list[str], contains: bool, writer: csv.DictWriter) -> None:
+    """Searches for matches between the IOCs and the file path.
 
     Args:
-        filepath (str): A string representing the file path of the file being processed.
-        ioc (List[str]): List of strings representing Indicators of Compromise (IOCs).
-        contains (bool): Determines whether the file path should contain the IOC or start with it.
-        writer (DictWriter): Used to write rows to a CSV file.
+        filepath (str): Path of the file being processed.
+        ioc (list[str]): List of strings representing Indicators of Compromise (IOCs).
+        contains (bool): Determines whether the search for IOCs should match on partial or exact matches.
+        writer (DictWriter): Used to write rows to the CSV file.
     """
+    path = Path(filepath)
     for line in ioc:
-        line = line.strip(",")
-
-        with contextlib.suppress(OSError):
-            filematch = PurePath(filepath).match(f"*{line}*") if contains else PurePath(filepath).match(f"{line}*")
-
-            if filematch:
-                path = Path(filepath)
-                created = datetime.fromtimestamp(os.stat(path).st_ctime)
-                size = os.stat(path).st_size
-                writer.writerows(
-                    [
-                        {
-                            "Path": path,
-                            "Size": size,
-                            "Created": f"{created:%Y-%m-%d}",
-                            "Hash": worker.sha256(str(path)),
-                        },
-                    ],
+        clean_line = line.strip(",")
+        filematch = path.match(f"*{clean_line}*") if contains else path.match(f"{clean_line}*")
+        if filematch:
+            with contextlib.suppress(OSError):
+                created = datetime.fromtimestamp(path.stat().st_ctime, ZoneInfo("UTC"))
+                size = path.stat().st_size
+                writer.writerow(
+                    {
+                        "Path": path,
+                        "Size": size,
+                        "Created": f"{created:%Y-%m-%d}",
+                        "Hash": worker.sha256(str(path)),
+                    },
                 )
-                worker.count += 1
+
+    worker.count += 1
 
 
-def ioc_processor(ioc: List[str], drivepath: str, contains: bool) -> None:
-    """
-    Takes a list of IOCs, a drive path, and a boolean value (`contains`) and searches
-    the drive path for the IOCs. If the IOC is found, the file path, size, creation date, and SHA256
-    hash are written to a CSV file.
+def ioc_processor(ioc: list[str], drivepath: str, contains: bool) -> None:
+    """Process the IOCs.
 
     Args:
-        ioc: This is the list of IOCs that you want to search for
-        drivepath: The path to the drive you want to scan
-        contains (bool): True or False
+        ioc (list[str]): List of IOCs to search for.
+        drivepath (str): The path to the drive you want to scan.
+        contains (bool): Determines whether the search for IOCs should match on partial or exact matches.
     """
     # Check if ioc contains spaces
     if any("," not in str(line.split(",")) for line in ioc[:-1]):
@@ -201,25 +205,53 @@ def ioc_processor(ioc: List[str], drivepath: str, contains: bool) -> None:
                 process_filepath(filepath, ioc, contains, writer)
 
 
-def infile_processor(drivepath: str) -> None:
-    """
-    Takes a drive path as an argument, reads the IOCs file, and then searches the drive for the IOCs.
-    If it finds an IOC, it writes the path, size, created date, and SHA256 hash to a CSV file.
-    If the IOCs file is empty, it exits.
-    If the user presses Ctrl+C, it writes the results to the CSV file and exits.
+def process_filename(writer: csv.DictWriter, root: str, filename: str, ioc_obj_lower: set[str]) -> None:
+    """Searches for matches between the IOCs and the file name.
 
     Args:
-        drivepath (path): The path to the drive you want to scan
+        writer (DictWriter): Used to write rows to the CSV file.
+        root (str): The path to the directory you want to scan.
+        filename (str): The name of the file being processed.
+        ioc_obj_lower (set[str]): A set of strings representing Indicators of Compromise (IOCs).
     """
-    # Check if IOC's file is empty
-    num_bytes = 40
-    if os.path.getsize(worker.iocs_file()) < num_bytes:
-        sys.exit(f"\n Missing IOCs -- The {worker.iocs_file()} file appears to be empty.\n")
+    filename_words = filename.lower().split()
+    for word in filename_words:
+        if word in ioc_obj_lower:
+            with contextlib.suppress(OSError):
+                path = Path(root) / filename
+                stat = path.stat()
+                created = datetime.fromtimestamp(stat.st_ctime, ZoneInfo("UTC"))
+                size = stat.st_size
+                worker.count += 1
+                writer.writerow(
+                    {
+                        "Path": path,
+                        "Size": size,
+                        "Created": f"{created:%Y-%m-%d}",
+                        "Hash": worker.sha256(str(path)),
+                    },
+                )
+
+
+def ioc_file_processor(drivepath: str) -> None:
+    """Process the IOCs file.
+
+    Args:
+        drivepath (str): The path to the drive you want to scan.
+    """
+    if not worker.check_iocs_file():
+        sys.exit(f"\n Missing IOCs -- file appears to be empty: {worker.iocs_file()}\n")
 
     ioc_obj = worker.read_file()
 
+    # Create a set of the IOCs in lowercase
+    ioc_obj_lower = {name.lower() for name in ioc_obj}
+
     with open(worker.save_iocs_csv(), "w", newline="", encoding="utf-8") as csvfile:
-        writer = write_to_csv(csvfile)
+        # Create the header row
+        writer = csv.DictWriter(csvfile, fieldnames=["Path", "Size", "Created", "Hash"])
+        writer.writeheader()
+
         try:
             cols = 80
             for root, _, files in tqdm(
@@ -230,29 +262,17 @@ def infile_processor(drivepath: str) -> None:
                 unit=" files",
             ):
                 for filename in files:
-                    if filename.lower() in (name.lower() for name in ioc_obj):
-                        with contextlib.suppress(OSError):
-                            path = os.path.join(root, filename)
-                            created = datetime.fromtimestamp(os.stat(path).st_ctime)
-                            size = os.stat(path).st_size
-                            worker.count += 1
-                            writer.writerows(
-                                [
-                                    {
-                                        "Path": path,
-                                        "Size": size,
-                                        "Created": f"{created:%Y-%m-%d}",
-                                        "Hash": worker.sha256(path),
-                                    },
-                                ],
-                            )
+                    process_filename(writer, root, filename, ioc_obj_lower)
+
         except KeyboardInterrupt:
             abort_output(csvfile)
 
+        finally:
+            csvfile.close()
+
 
 def write_to_csv(csvfile: IO[str]) -> csv.DictWriter:
-    """
-    Creates the CSV file and writes the header row.
+    """Creates the CSV file and writes the header row.
 
     Args:
         csvfile (IO[str]): The file object that you want to write to.
@@ -268,8 +288,7 @@ def write_to_csv(csvfile: IO[str]) -> csv.DictWriter:
 
 
 def abort_output(csvfile: IO[str]) -> None:
-    """
-    Closes the CSV file, removes the CSV file, and exits the program.
+    """Closes the CSV file, removes the CSV file, and exits the program.
 
     Args:
         csvfile (IO[str]): The file object that is being written to.
@@ -279,23 +298,29 @@ def abort_output(csvfile: IO[str]) -> None:
     sys.exit("\nAborted!")
 
 
-def main(drivepath: str, ioc: List[str], contains: bool = False, infile: bool = False) -> None:
-    """
-    Takes a drive path, an IOC, or an input file, and then searches the drive for the IOCs
+def main(drivepath: str, ioc: list[str], contains: bool = False, infile: bool = False) -> None:
+    """Processes IOCs from a given drive path or file and saves the results to a CSV file.
 
-    drivepath: The path to the drive you want to scan
-    ioc: The IOC you want to search for
-    infile: This is the file that contains the IOCs you want to search for
+    Args:
+        drivepath (str): Path to the directory or file to be processed.
+        ioc (list[str]): A list of strings representing Indicators of Compromise (IOCs) to search for.
+        contains (bool): Determines whether the search for IOCs should match on partial or exact matches.
+        infile (bool): Indicates whether the input file should be processed.
     """
     worker.count = 0
     if ioc:
         ioc_processor(ioc, drivepath, contains)
     elif infile:
-        infile_processor(drivepath)
+        ioc_file_processor(drivepath)
 
     if worker.count:
         console.print(f"\n Found {worker.count} IOCs on {worker.hostname}")
-        console.print(f" --> Results saved to {worker.save_iocs_csv()}\n")
+
+        # Get the last CSV file in the results folder
+        last_csv_file = max(Path("results").iterdir(), key=lambda x: x.stat().st_mtime)
+        print(f" --> Results saved to {last_csv_file}\n")
+
+        # Open the CSV file and print the contents to the terminal
         ptable_to_term()
     else:
         console.print(" No matches for IOCs")
@@ -330,8 +355,19 @@ if __name__ == "__main__":
     parser.add_argument("-c", action="store_true", help="name contains string")
 
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("-i", nargs="+", type=str, metavar="", help="single or list of IOCs (comma separated)")
-    group.add_argument("-f", action="store_true", default=iocs_file, help="use known_iocs.txt file containing IOCs")
+    group.add_argument(
+        "-i",
+        nargs="+",
+        type=str,
+        metavar="",
+        help="single or list of IOCs (comma separated)",
+    )
+    group.add_argument(
+        "-f",
+        action="store_true",
+        default=iocs_file,
+        help="use known_iocs.txt file containing IOCs",
+    )
 
     args = parser.parse_args()
 
