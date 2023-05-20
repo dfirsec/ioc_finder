@@ -30,19 +30,19 @@ The search can be performed on partial or exact matches depending on the provide
 
 1. Clone the repository:
 
-```console
+```text
 git clone https://github.com/dfirsec/ioc_finder.git
 ```
 
 2. Navigate to the project directory:
 
-```console
+```text
 cd ioc_finder
 ```
 
 3. Install the required dependencies using poetry:
 
-```console
+```text
 poetry install
 ```
 
@@ -50,7 +50,7 @@ poetry install
 
 IOC Finder can be run using the following command:
 
-```console
+```text
 python ioc_finder.py [options] path
 ```
 
@@ -80,7 +80,7 @@ The `path` argument should be the path to the directory or drive you want to sca
 
 Search for filenames that contain the IOC string "bad" in the "c:\" directory:
 
-```console
+```text
 python ioc_finder.py c:\ -i bad
 ```
 
@@ -99,19 +99,19 @@ python ioc_finder.py c:\ -i bad.
 
 Search for filenames that contain a wildcard match for anything before and after the IOC string IOC "bad" in the "c:\data" directory:
 
-```console
+```text
 python ioc_finder.py c:\data -c -i bad
 ```
 
 Search for specific IOCs "virus", "trojan", and "spyware" in the "D:\docs" directory:
 
-```console
+```text
 python ioc_finder.py -i virus,trojan,spyware D:\docs
 ```
 
 Search for IOCs using the "known_iocs.txt" file in the "E:\files" directory:
 
-```console
+```text
 python ioc_finder.py -f E:\files
 ```
 
