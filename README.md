@@ -48,7 +48,15 @@ poetry install
 
 ## Usage
 
-IOC Finder can be run using the following command:
+IOC Finder can be run using the following commands:
+
+1. Create the virtual environment
+
+```text
+poetry shell
+```
+
+2. Run using the following commands:
 
 ```text
 python ioc_finder.py [options] path
