@@ -1,54 +1,88 @@
 # IOC Finder
 
-![Generic badge](https://img.shields.io/badge/python-3.7-blue.svg) [![Twitter](https://img.shields.io/badge/Twitter-@pulsecode-blue.svg)](https://twitter.com/pulsecode)
+![Generic badge](https://img.shields.io/badge/python-3.9-blue.svg)
 
-```ioc_finder.py``` Quick and dirty method to search for filenames that match IOCs if file hashes are not yet available.
-                    A more comprehensive method would be to use Yara.
+Quick and dirty method to search for filenames that match IOCs if hashes are not yet available.
 
-```console
+## Description
 
-          ________  ______   _______           __
-         /  _/ __ \/ ____/  / ____(_)___  ____/ /__  _____
-         / // / / / /      / /_  / / __ \/ __  / _ \/ ___/
-       _/ // /_/ / /___   / __/ / / / / / /_/ /  __/ /
-      /___/\____/\____/  /_/   /_/_/ /_/\__,_/\___/_/
+IOC Finder is a Python script that allows you to search for filenames that match Indicators of Compromise (IOCs). It is a quick and simple method to identify potential matches between IOCs and filenames when hashes are not yet available.
 
-usage: ioc_finder.py [-h] [-c] (-i  [...] | -f) path
+The script supports two modes of operation:
+- **IOC Mode**: Search for IOCs in a given drive path or directory.
+- **File Mode**: Process a file containing IOCs and search for matches in a drive path or directory.
 
-positional arguments:
-  path        Path to search
+The search can be performed on partial or exact matches depending on the provided options.
 
-options:
-  -h, --help  show this help message and exit
-  -c          ioc name contains string
-  -i  [ ...]  single or list of iocs (comma separated)
-  -f          use known_iocs.txt file containing iocs
-```
+## Features
+
+- Search for filenames that match IOCs
+- Support for partial or exact match search
+- Generate a CSV file with the matched filenames and related information
+- Display the results in a table format in the console
+
+## Requirements
+
+- Python 3.9 or higher
+- Windows operating system
 
 ## Installation
 
-```text
+1. Clone the repository:
+
+```console
 git clone https://github.com/dfirsec/ioc_finder.git
+```
+
+2. Navigate to the project directory:
+
+```console
 cd ioc_finder
-pip install -r requirements.txt
 ```
 
-## Options
+3. Install the required dependencies using poetry:
 
-### -i option
+```console
+poetry install
+```
 
+## Usage
+
+IOC Finder can be run using the following command:
+
+```console
+python ioc_finder.py [options] path
+```
+
+The available options are:
+
+`-c`: Search for filenames that contain the IOC string (partial match).
+> The *-c* option is used in conjunction with the *-i* option as a wildcard match (\*) for anything before and after the string, e.g, searching for 'bad' would yield 'one**bad**apple', 'one**bad**fruit', 'ihave**bad**taste', etc, and also ignores the string case.
+
+`-i` \<ioc1>, \<ioc2> ...: Specify one or more IOCs to search for. Use commas or spaces to separate multiple IOCs.  
+> This option uses a wildcard match (\*) for anything after the end of the string, e.g, searching for 'bad' would yield '**bad**apple', '**bad**fruit', '**bad**taste', etc.  Matches are case insensitive.
+
+`-f`: Use the "known_iocs.txt" file containing IOCs to search for matches.
+> The *-f* option is when you need to search for many filenames. It's currently limited to exact filename matching, however, it's case insensitive.
+
+Add your IOC filenames to the *'known_iocs.txt'* text file.
 ```text
-python ioc_finder.py c:\ -i bad
-> Searching for IOCs on SYS-NAME: 38934 files [00:08, 4794.81 files/s]
-
-✔ Found 2 IOCs on SYS-NAME
-    --> Results saved to results\SYS-NAME_20200220-203455.csv
+# ADD IOC FILENAMES BELOW THIS LINE
+badstuff.txt
+badexe.exe
+Xdggrphr.lnk
+lookhere.dll
 ```
 
-The *-i* option uses a wildcard match (\*) for anything after the end of the string, e.g, searching for 'bad' would yield '**bad**apple', '**bad**fruit', '**bad**taste', etc, and also ignores the string case.
+The `path` argument should be the path to the directory or drive you want to scan.
 
-You can also search using a list of items (comma/space separated):
-```python ioc_finder.py c:\ -i bad, pizza, cheese, apple```
+## Examples
+
+Search for filenames that contain the IOC string "bad" in the "c:\" directory:
+
+```console
+python ioc_finder.py c:\ -i bad
+```
 
 Adding a '.' to the end of the string will return the string + any extension.
 
@@ -63,30 +97,31 @@ python ioc_finder.py c:\ -i bad.
 +------------------------------------------+----------+------------+----------------------------------+
 ```
 
-### -c option
+Search for filenames that contain a wildcard match for anything before and after the IOC string IOC "bad" in the "c:\data" directory:
 
-```text
-python ioc_finder.py c:\ -c -i bad
-> Searching for IOCs on SYS-NAME: 38934 files [00:08, 4794.81 files/s]
+```console
+python ioc_finder.py c:\data -c -i bad
 ```
 
-The *-c* option is used in conjunction with the *-i* option as a wildcard match (\*) for anything before and after the string, e.g, searching for 'bad' would yield 'one**bad**apple', 'one**bad**fruit', 'ihave**bad**taste', etc, and also ignores the string case.
+Search for specific IOCs "virus", "trojan", and "spyware" in the "D:\docs" directory:
 
-### -f option
-
-The *-f* option is when you need to search for many filenames. It's currently limited to exact filename matching, however, it's case insensitive (will match upper and lower).
-
-Add your IOC filenames to the *'known_iocs.txt'* text file.
-
-```text
-# ADD IOC FILENAMES BELOW THIS LINE
-badstuff.txt
-badexe.exe
-Xdggrphr.lnk
-lookhere.dll
+```console
+python ioc_finder.py -i virus,trojan,spyware D:\docs
 ```
 
-Example run...
+Search for IOCs using the "known_iocs.txt" file in the "E:\files" directory:
+
+```console
+python ioc_finder.py -f E:\files
+```
+
+## Output
+
+IOC Finder generates a CSV file in the "results" folder with the matched filenames and related information. The CSV file is named with the format "hostname_timestamp.csv", where "hostname" is the name of the current machine and "timestamp" is the date and time when the script was executed.
+
+The results are also displayed in a table format in the console.
+
+### Example run...
 
 ```text
 python ioc_finder.py c:\ -f
@@ -108,3 +143,6 @@ Results are saved to a file and presented with the name, size, creation date, an
 | c:\Windows\lookhere.dll                  |    6836  | 2019-08-23 | 68baa20566a1afa2319e6afc5942e056 |
 +------------------------------------------+----------+------------+----------------------------------+
 ```
+
+## License
+This project is licensed under the MIT License.
