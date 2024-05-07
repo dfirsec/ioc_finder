@@ -7,7 +7,7 @@ authors = ["Mitch Haddadi <12067255+dfirsec@users.noreply.github.com>"]
 [tool.poetry.dependencies]
 python = "^3.9"
 colorama = "^0.4.5"
-tqdm = "^4.64.0"
+tqdm = "^4.66.3"
 rich = "^13.3.4"
 
 [tool.poetry.extras]
